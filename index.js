@@ -11,12 +11,16 @@ const campusRoutes = require('./routes/campus');
 const classesRoutes = require('./routes/classes');
 const dRollRoutes = require('./routes/dailyRoll');
 const pRollRoutes = require('./routes/permanentRoll');
-
+const studentsRoutes = require('./routes/students');
 
 //Rutas a controladores
 app.use('/api', campusRoutes);
 app.use('/api', classesRoutes);
 app.use('/api', dRollRoutes);
 app.use('/api', pRollRoutes);
+app.use('/api', studentsRoutes);
 
-app.listen(5000, () => console.log('API corriendo en http://localhost:5000'));
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Servidor backend corriendo en http://localhost:${PORT}`);
+});
