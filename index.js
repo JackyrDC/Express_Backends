@@ -10,7 +10,7 @@ app.use(express.json());
 app.use('/api', require('./routes/students'));
 app.use('/api', require('./routes/campus'));
 app.use('/api', require('./routes/dailyRoll'));
-app.use('/api', require('./routes/permanentroll'));
+app.use('/api', require('./routes/permanentRoll'));
 app.use('/api', require('./routes/teachers'));
 app.use('/api', require('./routes/auth'));
 
