@@ -1,24 +1,18 @@
 const express = require('express');
 const cors = require('cors');
-const db = require('./db');
+require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-//Variables de controladores
-const campusRoutes = require('./routes/campus');
-const classesRoutes = require('./routes/classes');
-const dRollRoutes = require('./routes/dailyRoll');
-const pRollRoutes = require('./routes/permanentRoll');
-const studentsRoutes = require('./routes/students');
-
-//Rutas a controladores
-app.use('/api', campusRoutes);
-app.use('/api', classesRoutes);
-app.use('/api', dRollRoutes);
-app.use('/api', pRollRoutes);
-app.use('/api', studentsRoutes);
+// Importar rutas
+app.use('/api', require('./routes/students'));
+app.use('/api', require('./routes/campus'));
+app.use('/api', require('./routes/dailyroll'));
+app.use('/api', require('./routes/permanentroll'));
+app.use('/api', require('./routes/teachers'));
+app.use('/api', require('./routes/auth'));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
