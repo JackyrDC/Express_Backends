@@ -9,7 +9,7 @@ app.use(express.json());
 // Importar rutas
 app.use('/api', require('./routes/students'));
 app.use('/api', require('./routes/campus'));
-app.use('/api', require('./routes/dailyroll'));
+app.use('/api', require('./routes/dailyRoll'));
 app.use('/api', require('./routes/permanentroll'));
 app.use('/api', require('./routes/teachers'));
 app.use('/api', require('./routes/auth'));
