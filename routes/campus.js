@@ -20,6 +20,7 @@ router.get('/campus/:id', async (req, res) => {
     const result = await db.query(
       'SELECT * FROM campus WHERE idcampus = $1 AND "IsDeleted" = FALSE',
       [id]
+
     );
     if (result.rows.length === 0) return res.status(404).send('Campus no encontrado');
     res.json(result.rows[0]);

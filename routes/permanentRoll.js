@@ -20,6 +20,7 @@ router.get('/permanentroll/get', async (req, res) => {
 router.get('/permanentroll/get/:idDailyRoll/:idStudent', async (req, res) => {
   const { idDailyRoll, idStudent } = req.params;
   try {
+
     const result = await db.query(
       `SELECT * FROM "PermanentRoll" WHERE "IdDailyRoll" = $1 AND "IdStudent" = $2 AND "IsDeleted" = FALSE`,
       [idDailyRoll, idStudent]
@@ -114,4 +115,4 @@ router.get('/permanentroll/myattendance/:idStudent', async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = router

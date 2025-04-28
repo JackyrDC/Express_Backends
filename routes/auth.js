@@ -20,6 +20,7 @@ router.post('/login', async (req, res) => {
     if (studentResult.rows.length > 0) {
       const student = studentResult.rows[0];
       await db.query(
+
         `UPDATE students SET "IdUserState" = 1 WHERE "IdStudent" = $1`,
         [student.IdStudent]
       );

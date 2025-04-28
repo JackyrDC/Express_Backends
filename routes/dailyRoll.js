@@ -103,4 +103,4 @@ router.put('/dailyroll/deletedaily/:id', async (req, res) => {
   }
 });
 
-module.exports = { router, activeAttendanceSessions };
+module.exports = router;
