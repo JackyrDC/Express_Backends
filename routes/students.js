@@ -1,6 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const xlsx = require('xlsx');
+const path = require('path');
+const fs = require('fs');
+
+// Configurar almacenamiento de multer (en carpeta temporal)
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/'); // carpeta donde se guardarán los archivos subidos
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname)); // nombre único
+  }
+});
+
+const upload = multer({ storage: storage });
 
 // GET /api/Students/GET → obtener todos los estudiantes no eliminados
 router.get('/Students/GET', async (req, res) => {
@@ -183,6 +198,70 @@ router.put('/Students/DELETE/:id', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send('Error al eliminar estudiante');
+  }
+});
+
+// POST /api/Students/UploadExcel → subir y procesar Excel
+router.post('/Students/UploadExcel', upload.single('file'), async (req, res) => {
+  try {
+    const filePath = req.file.path;
+
+    const workbook = xlsx.readFile(filePath);
+    const sheetName = workbook.SheetNames[0];
+    const rawData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { range: 1 }); // range:1 para saltar primera fila
+
+    const estudiantes = rawData.map(row => {
+      const fullName = (row['Nombre Completo'] || '').trim().split(' ');
+      const mitad = Math.floor(fullName.length / 2);
+      const firstName = fullName.slice(0, mitad).join(' ');
+      const lastName = fullName.slice(mitad).join(' ');
+
+      return {
+        StudentName: firstName,
+        StudentLastName: lastName,
+        StudentEmail: row['Correo Institucional'] || '',
+        StudentPhone: '',
+        StudentAddress: '',
+        StudentGender: '',
+        StudentBirthDate: null,
+        StudentPhoto: '',
+        StudentActive: true,
+        IdCampus: 1,
+        IdUserType: 2
+      };
+    });
+
+    // Insertar en la base de datos
+    for (const s of estudiantes) {
+      await db.query(
+        `INSERT INTO students (
+          "StudentName", "StudentLastName", "StudentEmail", "StudentPhone",
+          "StudentAddress", "StudentGender", "StudentBirthDate", "StudentPhoto",
+          "StudentActive", "IdCampus", "IdUserType"
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [
+          s.StudentName,
+          s.StudentLastName,
+          s.StudentEmail,
+          s.StudentPhone,
+          s.StudentAddress,
+          s.StudentGender,
+          s.StudentBirthDate,
+          s.StudentPhoto,
+          s.StudentActive,
+          s.IdCampus,
+          s.IdUserType
+        ]
+      );
+    }
+
+    // Borrar el archivo subido después de procesarlo
+    fs.unlinkSync(filePath);
+
+    res.status(201).send('Estudiantes creados exitosamente desde Excel.');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error al procesar el archivo.');
   }
 });
 
