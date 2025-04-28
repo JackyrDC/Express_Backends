@@ -5,11 +5,11 @@ const db = require('../db');
 // GET /campus
 router.get('/campus', async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM campus WHERE "IsDeleted" = FALSE');
+    const result = await db.query('SELECT * FROM "dbo"."Campus" WHERE "IsDeleted" = FALSE');
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).send('Error al obtener los campus');
+    res.status(500).send('Test log');
   }
 });
 
@@ -18,9 +18,8 @@ router.get('/campus/:id', async (req, res) => {
   const id = req.params.id;
   try {
     const result = await db.query(
-      'SELECT * FROM campus WHERE idcampus = $1 AND "IsDeleted" = FALSE',
+      'SELECT * FROM "dbo"."Campus" WHERE "IdCampus" = $1 AND "IsDeleted" = FALSE',
       [id]
-
     );
     if (result.rows.length === 0) return res.status(404).send('Campus no encontrado');
     res.json(result.rows[0]);
@@ -35,7 +34,7 @@ router.post('/campus', async (req, res) => {
   const { name } = req.body;
   try {
     const result = await db.query(
-      'INSERT INTO campus (name) VALUES ($1) RETURNING *',
+      'INSERT INTO "dbo"."Campus ("Name") VALUES ($1) RETURNING *',
       [name]
     );
     res.status(201).json(result.rows[0]);
@@ -50,7 +49,7 @@ router.put('/campus', async (req, res) => {
   const { idcampus, name } = req.body;
   try {
     const result = await db.query(
-      'UPDATE campus SET name = $1 WHERE idcampus = $2 AND "IsDeleted" = FALSE RETURNING *',
+      'UPDATE "dbo"."Campus" SET "Name" = $1 WHERE "IdCampus" = $2 AND "IsDeleted" = FALSE RETURNING *',
       [name, idcampus]
     );
     if (result.rowCount === 0) return res.status(404).send('Campus no encontrado o eliminado');
@@ -66,7 +65,7 @@ router.delete('/campus/:id', async (req, res) => {
   const id = req.params.id;
   try {
     const result = await db.query(
-      'UPDATE campus SET "IsDeleted" = TRUE WHERE idcampus = $1 AND "IsDeleted" = FALSE RETURNING *',
+      'UPDATE "dbo"."Campus" SET "IsDeleted" = TRUE WHERE "IdCampus" = $1 AND "IsDeleted" = FALSE RETURNING *',
       [id]
     );
     if (result.rowCount === 0) return res.status(404).send('Campus no encontrado o ya eliminado');
