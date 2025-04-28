@@ -6,6 +6,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const activeAttendanceSessions = {};
+
 // Importar rutas
 app.use('/api', require('./routes/students'));
 app.use('/api', require('./routes/campus'));

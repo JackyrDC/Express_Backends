@@ -1,84 +1,116 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { activeAttendanceSessions } = require('./dailyRoll');
 
-// GET /api/PermanentRoll/Get → todos los registros no eliminados
-router.get('/PermanentRoll/Get', async (req, res) => {
+// GET /api/permanentroll/get
+router.get('/permanentroll/get', async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM permanentrolls WHERE "IsDeleted" = FALSE');
+    const result = await db.query(
+      `SELECT * FROM "PermanentRoll" WHERE "IsDeleted" = FALSE`
+    );
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).send('Error al obtener los registros permanentes');
+    res.status(500).send('Error obteniendo permanent rolls');
   }
 });
 
-// GET /api/PermanentRoll/Get/:id → obtener uno por ID
-router.get('/PermanentRoll/Get/:id', async (req, res) => {
+// GET /api/permanentroll/get/:idDailyRoll/:idStudent
+router.get('/permanentroll/get/:idDailyRoll/:idStudent', async (req, res) => {
+  const { idDailyRoll, idStudent } = req.params;
   try {
     const result = await db.query(
-      'SELECT * FROM permanentrolls WHERE id = $1 AND "IsDeleted" = FALSE',
-      [req.params.id]
+      `SELECT * FROM "PermanentRoll" WHERE "IdDailyRoll" = $1 AND "IdStudent" = $2 AND "IsDeleted" = FALSE`,
+      [idDailyRoll, idStudent]
     );
-    if (result.rows.length === 0) return res.status(404).send('Registro no encontrado');
+    if (result.rows.length === 0)
+      return res.status(404).send('Registro no encontrado');
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).send('Error al obtener el registro permanente');
+    res.status(500).send('Error buscando permanent roll');
   }
 });
 
-// POST /api/PermanentRoll/Post → crear registro
-router.post('/PermanentRoll/Post', async (req, res) => {
-  const { idDailyRoll, idStudent, rollState } = req.body;
+// POST /api/permanentroll/mark → alumno marca asistencia usando otp
+router.post('/permanentroll/mark', async (req, res) => {
+  const { otp, email } = req.body;
+
   try {
-    const result = await db.query(
-      `INSERT INTO permanentrolls ("idDailyRoll", "idStudent", "rollState") 
-       VALUES ($1, $2, $3) RETURNING *`,
-      [idDailyRoll, idStudent, rollState]
+    const sessionEntry = Object.entries(activeAttendanceSessions)
+      .find(([idDailyRoll, session]) => 
+        session.otp === otp && session.expiresAt > Date.now()
+      );
+
+    if (!sessionEntry) {
+      return res.status(400).send('Código inválido o expirado');
+    }
+
+    const [idDailyRoll] = sessionEntry;
+
+    const student = await db.query(
+      `SELECT * FROM students WHERE "StudentEmail" = $1 AND "IsDeleted" = FALSE`,
+      [email]
     );
-    res.status(201).json(result.rows[0]);
+
+    if (student.rows.length === 0) {
+      return res.status(404).send('Alumno no encontrado');
+    }
+
+    await db.query(
+      `INSERT INTO "PermanentRoll" ("IdDailyRoll", "IdStudent", "RollState", "IsDeleted")
+       VALUES ($1, $2, 'Presente', FALSE)`,
+      [idDailyRoll, student.rows[0].IdStudent]
+    );
+
+    res.send('Asistencia registrada');
   } catch (err) {
     console.error(err);
-    res.status(500).send('Error al crear el registro permanente');
+    res.status(500).send('Error registrando asistencia');
   }
 });
 
-// PUT /api/PermanentRoll/Put → actualizar
-router.put('/PermanentRoll/Put/:id', async (req, res) => {
-  const id = req.params.id;
-  const { idDailyRoll, idStudent, rollState, IsDeleted } = req.body;
+// PUT /api/permanentroll/manual → pase de lista manual por el maestro
+router.put('/permanentroll/manual', async (req, res) => {
+  const { idDailyRoll, attendanceList } = req.body;
+  // attendanceList = [{ idStudent: 1, rollState: "Presente" }, { idStudent: 2, rollState: "Ausente" }]
 
   try {
-    const result = await db.query(
-      `UPDATE permanentrolls 
-       SET "idDailyRoll" = $1, "idStudent" = $2, "rollState" = $3, "IsDeleted" = $4 
-       WHERE id = $5 AND "IsDeleted" = FALSE 
-       RETURNING *`,
-      [idDailyRoll, idStudent, rollState, IsDeleted, id]
-    );
-
-    if (result.rowCount === 0) return res.status(404).send('Registro no encontrado o eliminado');
-    res.json(result.rows[0]);
+    for (const record of attendanceList) {
+      await db.query(
+        `INSERT INTO "PermanentRoll" ("IdDailyRoll", "IdStudent", "RollState", "IsDeleted")
+         VALUES ($1, $2, $3, FALSE)
+         ON CONFLICT ("IdDailyRoll", "IdStudent") 
+         DO UPDATE SET "RollState" = EXCLUDED."RollState"`,
+        [idDailyRoll, record.idStudent, record.rollState]
+      );
+    }
+    res.send('Asistencia manual registrada');
   } catch (err) {
     console.error(err);
-    res.status(500).send('Error al actualizar el registro permanente');
+    res.status(500).send('Error en pase de lista manual');
   }
 });
 
-// PUT /api/PermanentRoll/Delete/:id → borrado lógico
-router.put('/PermanentRoll/Delete/:id', async (req, res) => {
-  const id = req.params.id;
+// GET /api/permanentroll/myattendance/:idStudent → ver mis asistencias
+router.get('/permanentroll/myattendance/:idStudent', async (req, res) => {
+  const idStudent = req.params.idStudent;
+
   try {
     const result = await db.query(
-      'UPDATE permanentrolls SET "IsDeleted" = TRUE WHERE id = $1 AND "IsDeleted" = FALSE RETURNING *',
-      [id]
+      `SELECT dr."CreationDate", pr."RollState"
+       FROM "PermanentRoll" pr
+       INNER JOIN "DailyRoll" dr ON pr."IdDailyRoll" = dr."IdDailyRoll"
+       WHERE pr."IdStudent" = $1 AND pr."IsDeleted" = FALSE
+       ORDER BY dr."CreationDate" DESC`,
+      [idStudent]
     );
-    if (result.rowCount === 0) return res.status(404).send('Registro no encontrado o ya eliminado');
-    res.send('Registro eliminado lógicamente');
+
+    res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).send('Error al eliminar el registro permanente');
+    res.status(500).send('Error obteniendo asistencias');
   }
 });
 
